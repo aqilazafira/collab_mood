@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -31,10 +32,34 @@ const navigation = [
   { name: "Settings", href: "/settings", icon: Settings },
 ]
 
+
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false)
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   const pathname = usePathname()
-  
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        setLoading(true)
+        const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
+        const headers: HeadersInit = { 'Content-Type': 'application/json' }
+        if (token) headers['Authorization'] = `Bearer ${token}`
+        const res = await fetch('/api/user', { method: 'GET', headers, credentials: 'include' })
+        if (res.ok) {
+          const data = await res.json()
+          setUser(data.user)
+        }
+      } catch (e) {
+        setUser(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchUser()
+  }, [])
+
   const handleLogout = async () => {
     try {
       const response = await fetch('/api/auth/logout', {
@@ -43,14 +68,10 @@ const Sidebar = () => {
           'Content-Type': 'application/json',
         },
       });
-
       if (response.ok) {
-        // Hapus token dari localStorage
         if (typeof window !== 'undefined') {
           localStorage.removeItem('authToken');
         }
-        
-        // Redirect ke halaman login
         window.location.href = '/login';
       } else {
         console.error('Logout failed');
@@ -131,12 +152,21 @@ const Sidebar = () => {
           {/* User info */}
           <div className="px-4 py-4 border-t">
             <div className="flex items-center">
-              <div className="bg-gray-300 rounded-full h-8 w-8 flex items-center justify-center">
-                <span className="text-sm font-medium text-gray-700">JD</span>
-              </div>
+              <Avatar className="h-8 w-8">
+                {/* You can add AvatarImage here if you have user image */}
+                <AvatarFallback>
+                  {loading || !user?.name
+                    ? '...'
+                    : user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                </AvatarFallback>
+              </Avatar>
               <div className="ml-3">
-                <p className="text-sm font-medium text-gray-900">John Doe</p>
-                <p className="text-xs text-gray-500">Student</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {loading ? 'Loading...' : user?.name || 'Unknown User'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {loading ? '' : user?.role || ''}
+                </p>
               </div>
             </div>
           </div>
