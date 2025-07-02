@@ -12,6 +12,32 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+// Fetch the current logged-in user from /api/auth/me
+function useCurrentUser() {
+  const [user, setUser] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let ignore = false;
+    async function fetchUser() {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (!ignore) {
+          setUser(data.user || null);
+        }
+      } catch {
+        if (!ignore) setUser(null);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }
+    fetchUser();
+    return () => { ignore = true };
+  }, []);
+  return { user, loading };
+}
 import {
   Tooltip,
   TooltipContent,
@@ -735,6 +761,27 @@ const SidebarMenuSubButton = React.forwardRef<
 })
 SidebarMenuSubButton.displayName = "SidebarMenuSubButton"
 
+// SidebarUserInfo: Shows the current logged-in user in the sidebar
+function SidebarUserInfo() {
+  const { user, loading } = useCurrentUser();
+  return (
+    <div className="flex items-center gap-3 p-4 border-t border-sidebar-border">
+      <Avatar>
+        <AvatarImage src={user?.avatarUrl || "/placeholder-user.jpg"} alt={user?.name || "User"} />
+        <AvatarFallback>{user?.name ? user.name[0] : "?"}</AvatarFallback>
+      </Avatar>
+      <div>
+        <div className="font-medium text-sm text-sidebar-foreground">
+          {loading ? <Skeleton className="h-4 w-24" /> : user?.name || "-"}
+        </div>
+        <div className="text-xs text-sidebar-foreground/70">
+          {loading ? <Skeleton className="h-3 w-16" /> : user?.role || "-"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export {
   Sidebar,
   SidebarContent,
@@ -760,4 +807,5 @@ export {
   SidebarSeparator,
   SidebarTrigger,
   useSidebar,
+  SidebarUserInfo,
 }
