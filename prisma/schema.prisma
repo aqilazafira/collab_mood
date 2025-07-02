@@ -18,10 +18,10 @@ model User {
   lastLogin DateTime?  @map("last_login")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
-  sessions  Session[]
-  emotions  EmotionData[]
+  sessions  Session[] @relation("UserSessions")
+  emotions  EmotionData[] @relation("UserEmotions")
   settings  UserSettings?
-  feedbacks     Feedback[]
+  feedbacks Feedback[] @relation("UserFeedbacks")
 
   @@map("users")
 }
@@ -38,11 +38,11 @@ model Session {
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
   userId        Int
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  emotions      EmotionData[]
-  suggestions  Suggestion[]
-  reports      SessionReport[]
-  feedbacks     Feedback[]
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade, name: "UserSessions")
+  emotions      EmotionData[] @relation("SessionEmotions")
+  suggestions   Suggestion[]  @relation("SessionSuggestions")
+  reports       SessionReport[] @relation("SessionReports")
+  feedbacks     Feedback[]    @relation("SessionFeedbacks")
 
   @@map("sessions")
 }
@@ -50,9 +50,9 @@ model Session {
 model EmotionData {
   id        String   @id @default(uuid())
   sessionId String
-  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade, name: "SessionEmotions")
   userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, name: "UserEmotions")
   valence   Float
   arousal   Float
   timestamp DateTime @default(now())
@@ -64,12 +64,11 @@ model EmotionData {
 model Suggestion {
   id          String   @id @default(uuid())
   sessionId   String
-  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade, name: "SessionSuggestions")
   content     String
   type        String
   isCompleted Boolean  @default(false)
   createdAt   DateTime @default(now()) @map("created_at")
-
 
   @@map("suggestions")
 }
@@ -77,11 +76,10 @@ model Suggestion {
 model SessionReport {
   id        String   @id @default(uuid())
   sessionId String   @unique
-  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade, name: "SessionReports")
   summary   String
   insights  Json
   createdAt DateTime @default(now()) @map("created_at")
-
 
   @@map("session_reports")
 }
@@ -91,14 +89,14 @@ model UserSettings {
   userId          Int      @unique
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   theme           String   @default("light")
-  notifications  Boolean  @default(true)
-  language       String   @default("en")
-  workHoursStart String   @default("09:00")
-  workHoursEnd   String   @default("17:00")
-  breakFrequency Int      @default(50)
-  breakDuration  Int      @default(10)
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  notifications   Boolean  @default(true)
+  language        String   @default("en")
+  workHoursStart  String   @default("09:00")
+  workHoursEnd    String   @default("17:00")
+  breakFrequency  Int      @default(50)
+  breakDuration   Int      @default(10)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@map("user_settings")
 }
@@ -106,9 +104,9 @@ model UserSettings {
 model Feedback {
   id        String   @id @default(uuid())
   userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, name: "UserFeedbacks")
   sessionId String?
-  session   Session? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session   Session? @relation(fields: [sessionId], references: [id], onDelete: Cascade, name: "SessionFeedbacks")
   content   String
   rating    Int // 1-5
   createdAt DateTime @default(now())
