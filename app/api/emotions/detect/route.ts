@@ -28,14 +28,17 @@ function simulateEmotionDetection() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession()
-    if (!session?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
 
-    const userId = typeof session.id === 'string' ? parseInt(session.id, 10) : session.id;
-    if (isNaN(userId)) {
-        return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
+    const session = await getSession();
+    // Pastikan session.id adalah number valid
+    let userId: number | null = null;
+    if (session && typeof session.id === 'number') {
+      userId = session.id;
+    } else if (session && typeof session.id === 'string' && /^\d+$/.test(session.id)) {
+      userId = parseInt(session.id, 10);
+    }
+    if (!userId || isNaN(userId)) {
+      return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
     }
 
     const { sessionId } = await request.json();
@@ -56,7 +59,7 @@ export async function POST(request: NextRequest) {
     const savedEmotion = await prisma.emotionData.create({
       data: {
         sessionId,
-        userId: userId,
+        userId,
         valence: topEmotion.score,
         arousal: Math.random(),
         notes: JSON.stringify({
@@ -66,9 +69,60 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Ambil riwayat deteksi emosi untuk sesi & user ini
+    const historyRaw = await prisma.emotionData.findMany({
+      where: { sessionId, userId },
+      orderBy: { timestamp: 'desc' },
+    });
+
+    // Entry pertama history = hasil deteksi terbaru
+    const topEmotionName = emotions.find(e => e.id === topEmotion.emotion)?.name || "Tidak diketahui";
+    const history = [
+      {
+        id: savedEmotion.id,
+        timestamp: savedEmotion.timestamp.toLocaleTimeString(),
+        emotion: topEmotion.emotion,
+        emotionName: topEmotionName,
+        confidence: topEmotion.score,
+      },
+      ...historyRaw
+        .filter(item => item.id !== savedEmotion.id)
+        .map((item) => {
+          let detected: any = null;
+          let detectedEmotion: string | null = null;
+          try {
+            detected = item.notes ? JSON.parse(item.notes) : null;
+            detectedEmotion = detected?.detectedEmotion;
+          } catch {}
+          if (!detectedEmotion || !emotions.find(e => e.id === detectedEmotion)) {
+            if (detected?.emotions && Array.isArray(detected.emotions)) {
+              const top = detected.emotions.reduce((a: any, b: any) => (a.score > b.score ? a : b), detected.emotions[0]);
+              detectedEmotion = top?.emotion;
+            } else if (typeof item.valence === 'number') {
+              // fallback: cari emosi dengan valence terdekat dari list emosi
+              // (asumsi: valence tinggi = happy, rendah = sad, dst)
+              // mapping kasar: happy > surprised > neutral > sad > angry
+              if (item.valence >= 0.7) detectedEmotion = 'happy';
+              else if (item.valence >= 0.5) detectedEmotion = 'surprised';
+              else if (item.valence >= 0.3) detectedEmotion = 'neutral';
+              else if (item.valence >= 0.15) detectedEmotion = 'sad';
+              else detectedEmotion = 'angry';
+            }
+          }
+          const emotionName = emotions.find(e => e.id === detectedEmotion)?.name || "Tidak diketahui";
+          return {
+            id: item.id,
+            timestamp: item.timestamp.toLocaleTimeString(),
+            emotion: detectedEmotion || null,
+            emotionName,
+            confidence: item.valence,
+          };
+        })
+    ];
+
     return NextResponse.json({
-      success: true,
-      data: savedEmotion,
+      detectionResult,
+      history,
     });
   } catch (error) {
     console.error('Error in emotion detection:', error);

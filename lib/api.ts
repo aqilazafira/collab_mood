@@ -133,7 +133,7 @@ export const sessionsApi = {
       body: JSON.stringify(session),
     }),
 
-  updateStatus: (id: string, status: string) =>
+  updateStatus: ({ id, status }: { id: string, status: string }) =>
     apiRequest(`/sessions/${id}`, {
       method: "PATCH",
       body: JSON.stringify({ status }),

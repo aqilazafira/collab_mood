@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
 import MainLayout from "@/components/layout/main-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -21,21 +23,68 @@ const emotions = [
   { id: "surprised", name: "Terkejut", icon: Heart, color: "text-purple-500" },
 ]
 
-// Mock history data
-const mockHistory = [
-  { id: "1", timestamp: "10:30 AM", emotion: "happy", emotionName: "Bahagia", confidence: 0.85 },
-  { id: "2", timestamp: "10:45 AM", emotion: "neutral", emotionName: "Netral", confidence: 0.72 },
-  { id: "3", timestamp: "11:00 AM", emotion: "sad", emotionName: "Sedih", confidence: 0.68 },
-]
+
 
 export default function EmotionDetectionPage() {
+  const router = useRouter();
+  // Akhiri sesi: update status dan redirect ke /sessions
+  const handleEndSession = async () => {
+    if (!activeSessionId) return;
+    try {
+      const res = await fetch(`/api/sessions/${activeSessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" }),
+      });
+      if (!res.ok) throw new Error("Gagal mengakhiri sesi");
+      toast({ title: "Sesi telah diakhiri", description: "Anda akan diarahkan ke halaman sesi." });
+      router.push("/sessions");
+    } catch (err: any) {
+      toast({ title: "Gagal mengakhiri sesi", description: err?.message || "Terjadi kesalahan." });
+    }
+  };
   const videoRef = useRef<HTMLVideoElement>(null)
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [autoDetect, setAutoDetect] = useState(false)
   const [detectionResult, setDetectionResult] = useState<any[]>([])
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [detectLoading, setDetectLoading] = useState(false)
-  const [history, setHistory] = useState(mockHistory)
+  const [history, setHistory] = useState<any[]>([])
+
+  // Session state
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const [isSessionLoading, setIsSessionLoading] = useState(true)
+  const [sessionError, setSessionError] = useState<string | null>(null)
+
+  // Toast
+  const { toast } = useToast()
+  // Ambil sesi aktif saat mount
+  useEffect(() => {
+    const fetchActiveSession = async () => {
+      setIsSessionLoading(true)
+      setSessionError(null)
+      try {
+        const res = await fetch("/api/sessions/active")
+        if (!res.ok) {
+          setActiveSessionId(null)
+          if (res.status === 404) {
+            setSessionError("Tidak ada sesi aktif. Mulai sesi baru untuk deteksi emosi.")
+          } else {
+            setSessionError("Gagal mengambil sesi aktif.")
+          }
+          return
+        }
+        const data = await res.json()
+        setActiveSessionId(data.sessionId)
+      } catch (err) {
+        setSessionError("Gagal mengambil sesi aktif.")
+        setActiveSessionId(null)
+      } finally {
+        setIsSessionLoading(false)
+      }
+    }
+    fetchActiveSession()
+  }, [])
 
   // Inisialisasi kamera
   const initCamera = async () => {
@@ -116,41 +165,29 @@ export default function EmotionDetectionPage() {
 
   // Deteksi emosi
   const handleDetectEmotion = async () => {
+    if (!activeSessionId) {
+      toast({ title: "Tidak ada sesi aktif", description: "Mulai sesi baru sebelum deteksi emosi.", })
+      return
+    }
     setDetectLoading(true)
-
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Generate random detection result
-      const randomIndex = Math.floor(Math.random() * emotions.length)
-      const selectedEmotion = emotions[randomIndex]
-
-      const result = emotions
-        .map((emotion) => ({
-          emotion: emotion.id,
-          name: emotion.name,
-          score:
-            emotion.id === selectedEmotion.id
-              ? Math.random() * 0.4 + 0.6 // 60-100% for selected emotion
-              : Math.random() * 0.4, // 0-40% for others
-        }))
-        .sort((a, b) => b.score - a.score)
-
-      setDetectionResult(result)
-
-      // Add to history
-      const newDetection = {
-        id: Date.now().toString(),
-        timestamp: new Date().toLocaleTimeString(),
-        emotion: result[0].emotion,
-        emotionName: result[0].name,
-        confidence: result[0].score,
+      // Ambil frame dari video (opsional, jika backend butuh gambar)
+      // const imageData = ...
+      const res = await fetch("/api/emotions/detect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: activeSessionId /*, image: imageData */ }),
+      })
+      if (!res.ok) {
+        throw new Error("Gagal mendeteksi emosi")
       }
-
-      setHistory((prev) => [newDetection, ...prev])
-    } catch (error) {
-      console.error("Detection failed:", error)
+      const data = await res.json()
+      // Asumsi response: { detectionResult: [...], history: [...] }
+      setDetectionResult(data.detectionResult || [])
+      setHistory(data.history || [])
+      toast({ title: "Deteksi emosi berhasil", description: "Hasil deteksi telah disimpan." })
+    } catch (error: any) {
+      toast({ title: "Gagal mendeteksi emosi", description: error?.message || "Terjadi kesalahan." })
     } finally {
       setDetectLoading(false)
     }
@@ -279,23 +316,39 @@ export default function EmotionDetectionPage() {
                       <Button onClick={stopCamera} variant="outline">
                         Matikan Kamera
                       </Button>
-                      <Button onClick={handleDetectEmotion} disabled={detectLoading}>
-                        {detectLoading ? (
-                          <>
-                            <LoadingSpinner size="sm" className="mr-2" />
-                            Mendeteksi...
-                          </>
-                        ) : (
-                          <>
-                            <Smile className="h-4 w-4 mr-2" />
-                            Deteksi Emosi
-                          </>
-                        )}
-                      </Button>
-                      <Button variant="outline">
-                        <Save className="h-4 w-4 mr-2" />
-                        Ambil Gambar
-                      </Button>
+                  <Button
+                    onClick={handleDetectEmotion}
+                    disabled={detectLoading || isSessionLoading || !activeSessionId}
+                  >
+                    {detectLoading ? (
+                      <>
+                        <LoadingSpinner size="sm" className="mr-2" />
+                        Mendeteksi...
+                      </>
+                    ) : (
+                      <>
+                        <Smile className="h-4 w-4 mr-2" />
+                        Deteksi Emosi
+                      </>
+                    )}
+                  </Button>
+        {/* Pesan status sesi */}
+        {isSessionLoading ? (
+          <div className="text-blue-500 text-sm mt-2">Memuat sesi aktif...</div>
+        ) : sessionError ? (
+          <div className="text-red-500 text-sm mt-2">{sessionError}</div>
+        ) : null}
+                    <Button variant="outline">
+                      <Save className="h-4 w-4 mr-2" />
+                      Ambil Gambar
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={handleEndSession}
+                      disabled={!activeSessionId || isSessionLoading}
+                    >
+                      Akhiri Sesi
+                    </Button>
                     </>
                   )}
                 </div>

@@ -93,11 +93,14 @@ export default function TimelinePage() {
                     strokeWidth={3}
                     name="Valence"
                     dot={(props) => {
-                      const { payload } = props
-                      if (payload.event) {
-                        return <circle {...props} r={6} fill="#f59e0b" stroke="#f59e0b" strokeWidth={2} />
+                      // Remove dataKey from props to avoid React warning
+                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                      const { key, dataKey, ...rest } = props as any;
+                      const { payload } = rest;
+                      if (payload && payload.event) {
+                        return <circle key={key} {...rest} r={6} fill="#f59e0b" stroke="#f59e0b" strokeWidth={2} />
                       }
-                      return <circle {...props} r={3} />
+                      return <circle key={key} {...rest} r={3} />
                     }}
                   />
                   <Line
@@ -107,11 +110,14 @@ export default function TimelinePage() {
                     strokeWidth={3}
                     name="Arousal"
                     dot={(props) => {
-                      const { payload } = props
-                      if (payload.event) {
-                        return <circle {...props} r={6} fill="#f59e0b" stroke="#f59e0b" strokeWidth={2} />
+                      // Remove dataKey from props to avoid React warning
+                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                      const { key, dataKey, ...rest } = props as any;
+                      const { payload } = rest;
+                      if (payload && payload.event) {
+                        return <circle key={key} {...rest} r={6} fill="#f59e0b" stroke="#f59e0b" strokeWidth={2} />
                       }
-                      return <circle {...props} r={3} />
+                      return <circle key={key} {...rest} r={3} />
                     }}
                   />
                   <ReferenceLine y={0.5} stroke="#6b7280" strokeDasharray="5 5" />

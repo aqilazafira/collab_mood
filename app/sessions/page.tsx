@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import MainLayout from "@/components/layout/main-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -24,6 +25,7 @@ import { useApi, useApiMutation } from "@/hooks/use-api"
 import { sessionsApi } from "@/lib/api"
 
 export default function SessionsPage() {
+  const router = useRouter();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [newSession, setNewSession] = useState({
     name: "",
@@ -67,6 +69,7 @@ export default function SessionsPage() {
     try {
       await updateSession(sessionsApi.updateStatus, { id: sessionId, status: "active" })
       refetch()
+      router.push('/emotion-detection')
     } catch (error) {
       console.error("Failed to start session:", error)
     }
