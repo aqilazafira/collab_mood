@@ -9,9 +9,14 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userId = typeof session.id === 'string' ? parseInt(session.id, 10) : session.id;
-    if (isNaN(userId)) {
-        return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
+    let userId: number | null = null;
+    if (typeof session.id === 'number') {
+      userId = session.id;
+    } else if (typeof session.id === 'string' && /^\d+$/.test(session.id)) {
+      userId = parseInt(session.id, 10);
+    }
+    if (!userId || isNaN(userId)) {
+      return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
     }
 
     const userFeedback = await prisma.feedback.findMany({
@@ -52,17 +57,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const userId = typeof session.id === 'string' ? parseInt(session.id, 10) : session.id;
-    if (isNaN(userId)) {
-        return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
+    let userId: number | null = null;
+    if (typeof session.id === 'number') {
+      userId = session.id;
+    } else if (typeof session.id === 'string' && /^\d+$/.test(session.id)) {
+      userId = parseInt(session.id, 10);
+    }
+    if (!userId || isNaN(userId)) {
+      return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
     }
 
-    const { rating, content, sessionId } = await request.json()
+    const { rating, category, comment, sessionId } = await request.json()
+    if (!category || !comment || !rating) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    }
 
     const newFeedback = await prisma.feedback.create({
       data: {
         userId,
-        content,
+        category,
+        comment,
         rating: Number(rating),
         sessionId,
       },

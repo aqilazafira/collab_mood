@@ -1,6 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useApi } from "@/hooks/use-api"
+import { settingsApi } from "@/lib/api"
 import MainLayout from "@/components/layout/main-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -24,50 +26,53 @@ import {
 import { Settings, Bell, Camera, Mic, Shield, Trash2, Save } from "lucide-react"
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState({
-    // Emotion Detection Settings
-    emotionSensitivity: [75],
-    enableWebcam: true,
-    enableMicrophone: true,
-    detectionFrequency: "medium",
-
-    // Notification Settings
-    enableNotifications: true,
-    suggestionNotifications: true,
-    conflictAlerts: true,
-    sessionReminders: true,
-    emailNotifications: false,
-
-    // Privacy Settings
-    dataRetention: "30",
-    shareAnonymousData: true,
-    allowRecording: false,
-
-    // Interface Settings
-    theme: "light",
-    language: "en",
-    autoSaveReports: true,
-
-    // Account Settings
-    displayName: "John Doe",
-    email: "john.doe@example.com",
-    role: "Student",
-  })
+  const { data, loading, error, refetch } = useApi(() => settingsApi.get(), [])
+  const [settings, setSettings] = useState<any>(null)
+  const [saving, setSaving] = useState(false)
+  useEffect(() => {
+    if (data?.settings) setSettings(data.settings)
+  }, [data])
 
   const handleSettingChange = (key: string, value: any) => {
-    setSettings((prev) => ({ ...prev, [key]: value }))
+    setSettings((prev: any) => ({ ...prev, [key]: value }))
   }
 
-  const handleSaveSettings = () => {
-    // Mock save settings
-    console.log("Saving settings:", settings)
-    alert("Settings saved successfully!")
+  const handleSaveSettings = async () => {
+    setSaving(true)
+    try {
+      await settingsApi.update(settings)
+      refetch()
+      alert("Settings saved successfully!")
+    } catch (e) {
+      alert("Failed to save settings")
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleDeleteAccount = () => {
     // Mock account deletion
     console.log("Account deletion requested")
     alert("Account deletion request submitted. You will receive a confirmation email.")
+  }
+
+  if (loading || !settings) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <span>Loading...</span>
+        </div>
+      </MainLayout>
+    )
+  }
+  if (error) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <span className="text-red-500">{error}</span>
+        </div>
+      </MainLayout>
+    )
   }
 
   return (
@@ -79,9 +84,9 @@ export default function SettingsPage() {
             <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
             <p className="text-gray-600 mt-2">Customize your COLLAB-MOOD experience</p>
           </div>
-          <Button onClick={handleSaveSettings}>
+          <Button onClick={handleSaveSettings} disabled={saving}>
             <Save className="h-4 w-4 mr-2" />
-            Save Changes
+            {saving ? "Saving..." : "Save Changes"}
           </Button>
         </div>
 
@@ -100,8 +105,8 @@ export default function SettingsPage() {
                 <Label className="text-base font-medium">Detection Sensitivity</Label>
                 <div className="mt-2">
                   <Slider
-                    value={settings.emotionSensitivity}
-                    onValueChange={(value) => handleSettingChange("emotionSensitivity", value)}
+                    value={[settings.breakFrequency]}
+                    onValueChange={(value) => handleSettingChange("breakFrequency", value[0])}
                     max={100}
                     min={0}
                     step={5}
@@ -109,7 +114,7 @@ export default function SettingsPage() {
                   />
                   <div className="flex justify-between text-xs text-gray-500 mt-1">
                     <span>Low</span>
-                    <span>Current: {settings.emotionSensitivity[0]}%</span>
+                    <span>Current: {settings.breakFrequency}%</span>
                     <span>High</span>
                   </div>
                 </div>

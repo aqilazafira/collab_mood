@@ -107,7 +107,8 @@ model Feedback {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, name: "UserFeedbacks")
   sessionId String?
   session   Session? @relation(fields: [sessionId], references: [id], onDelete: Cascade, name: "SessionFeedbacks")
-  content   String
-  rating    Int // 1-5
+  category  String   // new: feedback category
+  comment   String   // new: feedback comment/content
+  rating    Int      // 1-5
   createdAt DateTime @default(now())
 }

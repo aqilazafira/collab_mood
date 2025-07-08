@@ -19,6 +19,8 @@ export default function FeedbackPage() {
   const [rating, setRating] = useState("")
   const [comment, setComment] = useState("")
   const [category, setCategory] = useState("")
+  const [showSuggestionLink, setShowSuggestionLink] = useState(false)
+  const [successMessage, setSuccessMessage] = useState("")
 
   // API hooks
   const { data: feedbackData, loading, error, refetch } = useApi(() => feedbackApi.getAll(), [])
@@ -42,7 +44,8 @@ export default function FeedbackPage() {
       // Refresh feedback list
       refetch()
 
-      alert("Feedback submitted successfully!")
+      setSuccessMessage("Feedback submitted successfully!")
+      setShowSuggestionLink(true)
     } catch (error) {
       console.error("Failed to submit feedback:", error)
     }
@@ -77,6 +80,14 @@ export default function FeedbackPage() {
   return (
     <MainLayout>
       <div className="space-y-6">
+        {successMessage && (
+          <div className="bg-green-100 border border-green-300 text-green-800 rounded p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <span>{successMessage}</span>
+            {showSuggestionLink && (
+              <a href="/suggestions" className="inline-block mt-2 md:mt-0 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Lihat Smart Suggestions</a>
+            )}
+          </div>
+        )}
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Feedback</h1>
@@ -238,21 +249,11 @@ export default function FeedbackPage() {
                     <div key={item.id} className="border rounded-lg p-4">
                       <div className="flex items-start justify-between mb-2">
                         <div>
-                          <p className="font-medium text-sm capitalize">{item.category.replace("-", " ")}</p>
-                          <p className="text-xs text-gray-500">{new Date(item.timestamp).toLocaleDateString()}</p>
+                          <p className="font-medium text-sm capitalize">{item.category?.replace("-", " ")}</p>
+                          <p className="text-xs text-gray-500">{new Date(item.createdAt || item.timestamp).toLocaleDateString()}</p>
                         </div>
                         <div className="flex items-center space-x-2">
                           <div className="flex">{renderStars(item.rating)}</div>
-                          <Badge variant={item.status === "reviewed" ? "secondary" : "outline"} className="text-xs">
-                            {item.status === "reviewed" ? (
-                              <>
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Reviewed
-                              </>
-                            ) : (
-                              "Pending"
-                            )}
-                          </Badge>
                         </div>
                       </div>
                       <p className="text-sm text-gray-700">{item.comment}</p>
