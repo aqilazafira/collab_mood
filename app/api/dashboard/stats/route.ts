@@ -37,15 +37,9 @@ export async function GET(request: NextRequest) {
       return total
     }, 0)
 
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000)
+    // const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000)
     const emotionData = await prisma.emotionData.findMany({
-      where: {
-        timestamp: {
-          gte: tenMinutesAgo,
-        },
-      },
       orderBy: { timestamp: "desc" },
-      take: 10,
     })
 
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
